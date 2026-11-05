@@ -2778,6 +2778,13 @@ redirectFrom:
   - `mcc_container_deposit_item`: Move items from the player inventory into an open container.
   - `mcc_container_withdraw_item`: Move items from an open container into the player inventory.
 
+  **Server dialogs**
+
+  - `mcc_dialog_state`: Read the current dialog: titles, body text, clickable body text with its hover text and click action, buttons, and inputs.
+  - `mcc_dialog_click_body`: Click a piece of clickable body text by its index.
+  - `mcc_dialog_click_action`: Click a dialog button by index or label.
+  - `mcc_dialog_close`: Close the dialog like pressing Escape.
+
   **Entities, signs, and dropped items**
 
   - `mcc_entities_query`: Query tracked entities.

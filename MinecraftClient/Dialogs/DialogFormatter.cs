@@ -27,6 +27,21 @@ public static class DialogFormatter
         foreach (var body in instance.Definition.Body.Where(static body => !string.IsNullOrWhiteSpace(body.Text)))
             builder.AppendLine(body.Text);
 
+        var clicks = instance.Definition.BodyClicks;
+        if (clicks.Count > 0)
+        {
+            builder.AppendLine(Translations.dialog_render_body_clicks);
+            foreach (var click in clicks)
+            {
+                builder.AppendLine(string.Format(Translations.dialog_render_body_click, click.Index, click.Text, DescribeBodyClick(click)));
+                if (string.IsNullOrWhiteSpace(click.Hover))
+                    continue;
+
+                foreach (var line in click.Hover.Split('\n'))
+                    builder.AppendLine(string.Format(Translations.dialog_render_body_click_hover, line));
+            }
+        }
+
         if (instance.Definition.Inputs.Count > 0)
         {
             builder.AppendLine(Translations.dialog_render_inputs);
@@ -87,6 +102,22 @@ public static class DialogFormatter
             DialogInputKind.NumberRange => string.Format(Translations.dialog_input_desc_number, input.Start, input.End),
             _ => input.Type ?? Translations.dialog_input_desc_unknown
         };
+    }
+
+    private static string DescribeBodyClick(DialogBodyClick click)
+    {
+        var kind = click.Kind switch
+        {
+            DialogActionKind.RunCommand => Translations.dialog_action_desc_command,
+            DialogActionKind.CustomClick => Translations.dialog_action_desc_custom,
+            DialogActionKind.ShowDialog => Translations.dialog_action_desc_show_dialog,
+            DialogActionKind.OpenUrl => Translations.dialog_action_desc_open_url,
+            DialogActionKind.SuggestCommand => Translations.dialog_action_desc_suggest,
+            DialogActionKind.CopyToClipboard => Translations.dialog_action_desc_copy,
+            _ => click.Action
+        };
+        var detail = click.Id ?? click.Value ?? click.NestedDialog?.DisplayTitle();
+        return string.IsNullOrEmpty(detail) ? kind : string.Format(Translations.dialog_render_body_click_detail, kind, detail);
     }
 
     private static string DescribeAction(DialogActionDefinition? action)

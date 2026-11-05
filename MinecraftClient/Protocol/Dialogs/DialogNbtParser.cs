@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using MinecraftClient.Dialogs;
 using MinecraftClient.Protocol.Message;
+using MinecraftClient.Scripting;
 
 namespace MinecraftClient.Protocol.Dialogs;
 
@@ -88,8 +90,10 @@ public sealed class DialogNbtParser
             return [];
 
         List<DialogBody> body = [];
+        var nextClick = 1;
         foreach (var item in Enumerate(value))
         {
+            var bodyIndex = body.Count + 1;
             if (item is Dictionary<string, object> compound)
             {
                 var type = NormalizeType(GetString(compound, "type") ?? "minecraft:plain_message");
@@ -98,18 +102,104 @@ public sealed class DialogNbtParser
                     var description = compound.TryGetValue("description", out var desc)
                         ? ParsePlainMessage(desc)
                         : string.Empty;
-                    body.Add(new DialogBody(DialogBodyKind.Item, string.IsNullOrWhiteSpace(description) ? Translations.dialog_item_body : description, type));
+                    var itemClicks = ParseClicks(PlainMessageContents(desc), bodyIndex, ref nextClick);
+                    body.Add(new DialogBody(DialogBodyKind.Item, string.IsNullOrWhiteSpace(description) ? Translations.dialog_item_body : description, type, itemClicks));
                     continue;
                 }
 
-                body.Add(new DialogBody(DialogBodyKind.PlainMessage, ParsePlainMessage(compound), type));
+                var clicks = ParseClicks(PlainMessageContents(compound), bodyIndex, ref nextClick);
+                body.Add(new DialogBody(DialogBodyKind.PlainMessage, ParsePlainMessage(compound), type, clicks));
                 continue;
             }
 
-            body.Add(new DialogBody(DialogBodyKind.PlainMessage, ParseComponent(item), "minecraft:plain_message"));
+            var itemTextClicks = ParseClicks(item, bodyIndex, ref nextClick);
+            body.Add(new DialogBody(DialogBodyKind.PlainMessage, ParseComponent(item), "minecraft:plain_message", itemTextClicks));
         }
 
         return body;
+    }
+
+    private static object? PlainMessageContents(object? value)
+    {
+        return value is Dictionary<string, object> compound && compound.TryGetValue("contents", out var contents)
+            ? contents
+            : value;
+    }
+
+    private static IReadOnlyList<DialogBodyClick> ParseClicks(object? component, int bodyIndex, ref int nextIndex)
+    {
+        List<DialogBodyClick> clicks = [];
+        CollectClicks(component, null, bodyIndex, clicks, ref nextIndex);
+        return clicks;
+    }
+
+    private static void CollectClicks(object? component, string? inheritedHover, int bodyIndex, List<DialogBodyClick> clicks, ref int nextIndex)
+    {
+        if (component is object[] list)
+        {
+            foreach (var element in list)
+                CollectClicks(element, inheritedHover, bodyIndex, clicks, ref nextIndex);
+            return;
+        }
+
+        if (component is not Dictionary<string, object> node)
+            return;
+
+        var hoverEvent = GetEvent(node, "hover_event", "hoverEvent");
+        var hover = hoverEvent is null ? inheritedHover : ParseHoverText(hoverEvent);
+        if (GetEvent(node, "click_event", "clickEvent") is { } clickEvent)
+            clicks.Add(ParseBodyClick(clickEvent, nextIndex++, bodyIndex, ClickableText(node), hover));
+
+        foreach (var child in Enumerate(GetValue(node, "extra")))
+            CollectClicks(child, hover, bodyIndex, clicks, ref nextIndex);
+    }
+
+    private static DialogBodyClick ParseBodyClick(Dictionary<string, object> clickEvent, int index, int bodyIndex, string text, string? hover)
+    {
+        var action = GetString(clickEvent, "action") ?? string.Empty;
+        var value = GetString(clickEvent, "value");
+        return action switch
+        {
+            "custom" => new DialogBodyClick(index, bodyIndex, text, hover, DialogActionKind.CustomClick, action, Id: GetString(clickEvent, "id"), Payload: GetValue(clickEvent, "payload")),
+            "run_command" => new DialogBodyClick(index, bodyIndex, text, hover, DialogActionKind.RunCommand, action, GetString(clickEvent, "command") ?? value),
+            "suggest_command" => new DialogBodyClick(index, bodyIndex, text, hover, DialogActionKind.SuggestCommand, action, GetString(clickEvent, "command") ?? value),
+            "open_url" => new DialogBodyClick(index, bodyIndex, text, hover, DialogActionKind.OpenUrl, action, GetString(clickEvent, "url") ?? value),
+            "copy_to_clipboard" => new DialogBodyClick(index, bodyIndex, text, hover, DialogActionKind.CopyToClipboard, action, value),
+            "change_page" => new DialogBodyClick(index, bodyIndex, text, hover, DialogActionKind.Unknown, action, GetString(clickEvent, "page") ?? value),
+            "show_dialog" => clickEvent.TryGetValue("dialog", out var dialog) && dialog is Dictionary<string, object> dialogData
+                ? new DialogBodyClick(index, bodyIndex, text, hover, DialogActionKind.ShowDialog, action, NestedDialog: new DialogNbtParser().Parse(dialogData))
+                : new DialogBodyClick(index, bodyIndex, text, hover, DialogActionKind.ShowDialog, action, GetString(clickEvent, "dialog") ?? value),
+            _ => new DialogBodyClick(index, bodyIndex, text, hover, DialogActionKind.Unknown, action, value)
+        };
+    }
+
+    private static string? ParseHoverText(Dictionary<string, object> hoverEvent)
+    {
+        if (GetString(hoverEvent, "action") != "show_text")
+            return null;
+
+        var contents = GetValue(hoverEvent, "value") ?? GetValue(hoverEvent, "contents");
+        return contents is null ? null : ChatBot.GetVerbatim(ParseComponent(contents));
+    }
+
+    private static string ClickableText(Dictionary<string, object> node)
+    {
+        var own = node.Where(static pair => pair.Key != "extra").ToDictionary(static pair => pair.Key, static pair => pair.Value);
+        StringBuilder text = new(ChatBot.GetVerbatim(ParseComponent(own)));
+        foreach (var child in Enumerate(GetValue(node, "extra")))
+        {
+            if (child is not Dictionary<string, object> childNode)
+                text.Append(ChatBot.GetVerbatim(ParseComponent(child)));
+            else if (GetEvent(childNode, "click_event", "clickEvent") is null)
+                text.Append(ClickableText(childNode));
+        }
+
+        return text.ToString();
+    }
+
+    private static Dictionary<string, object>? GetEvent(Dictionary<string, object> node, string key, string legacyKey)
+    {
+        return GetCompound(node, key) ?? GetCompound(node, legacyKey);
     }
 
     private static string ParsePlainMessage(object? value)

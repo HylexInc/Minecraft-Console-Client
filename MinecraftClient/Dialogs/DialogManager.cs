@@ -195,6 +195,57 @@ public sealed class DialogManager
         };
     }
 
+    public DialogActionResult ClickBody(int index)
+    {
+        DialogBodyClick? click;
+        DialogInstance? instance;
+        lock (_lock)
+        {
+            instance = _current;
+            click = instance?.Definition.BodyClicks.FirstOrDefault(body => body.Index == index);
+        }
+
+        if (instance is null)
+            return new DialogActionResult(false, Translations.dialog_none);
+
+        if (click is null)
+            return new DialogActionResult(false, string.Format(Translations.dialog_body_click_unknown, index));
+
+        var closeWhenDone = ShouldCloseAfterAction(instance.Definition.AfterAction);
+        switch (click.Kind)
+        {
+            case DialogActionKind.CustomClick:
+                if (click.Id is null)
+                    return new DialogActionResult(false, Translations.dialog_action_invalid);
+
+                if (!_client.SendCustomClickAction(click.Id, click.Payload))
+                    return new DialogActionResult(false, Translations.dialog_action_custom_failed);
+
+                if (closeWhenDone)
+                    _ = Dismiss();
+                return new DialogActionResult(true, string.Format(Translations.dialog_action_custom_sent, click.Id));
+
+            case DialogActionKind.RunCommand:
+                if (instance.Phase != DialogPhase.Play)
+                    return new DialogActionResult(false, Translations.dialog_action_command_not_in_play);
+
+                if (string.IsNullOrWhiteSpace(click.Value))
+                    return new DialogActionResult(false, Translations.dialog_action_invalid);
+
+                var command = click.Value.StartsWith('/') ? click.Value : "/" + click.Value;
+                _client.SendText(command);
+                if (closeWhenDone)
+                    _ = Dismiss();
+                return new DialogActionResult(true, string.Format(Translations.dialog_action_command_sent, command));
+
+            case DialogActionKind.OpenUrl:
+                return new DialogActionResult(true, string.Format(Translations.dialog_action_open_url, click.Value ?? string.Empty));
+
+            default:
+                return new DialogActionResult(false, string.Format(Translations.dialog_action_unsupported, click.Action));
+        }
+    }
+
     public DialogActionResult Cancel()
     {
         DialogInstance? instance;

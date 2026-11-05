@@ -63,4 +63,8 @@ public interface IMccMcpCapabilities
     MccMcpResult ListItemEntities(string? itemType, double radius, int maxCount);
     MccMcpResult PickupItems(string itemType, double radius, int maxItems, bool allowUnsafe, int timeoutMs);
     MccMcpResult GetWorldBlockAt(int x, int y, int z);
+    MccMcpResult GetDialogState();
+    MccMcpResult ClickDialogBody(int index);
+    MccMcpResult ClickDialogAction(int? index, string? label);
+    MccMcpResult CloseDialog();
 }

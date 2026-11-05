@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MinecraftClient.Dialogs;
 
@@ -44,7 +45,19 @@ public enum DialogActionKind
     Unknown
 }
 
-public sealed record DialogBody(DialogBodyKind Kind, string Text, string? Type = null);
+public sealed record DialogBody(DialogBodyKind Kind, string Text, string? Type = null, IReadOnlyList<DialogBodyClick>? Clicks = null);
+
+public sealed record DialogBodyClick(
+    int Index,
+    int BodyIndex,
+    string Text,
+    string? Hover,
+    DialogActionKind Kind,
+    string Action,
+    string? Value = null,
+    string? Id = null,
+    object? Payload = null,
+    DialogDefinition? NestedDialog = null);
 
 public sealed record DialogOption(string Id, string Display, bool Initial)
 {
@@ -98,7 +111,10 @@ public sealed record DialogDefinition(
     int Columns = 1,
     int ButtonWidth = 150,
     bool IsResolved = true,
-    string? UnresolvedReference = null);
+    string? UnresolvedReference = null)
+{
+    public IReadOnlyList<DialogBodyClick> BodyClicks => [.. Body.SelectMany(static body => body.Clicks ?? [])];
+}
 
 public sealed record DialogInstance(
     int Revision,

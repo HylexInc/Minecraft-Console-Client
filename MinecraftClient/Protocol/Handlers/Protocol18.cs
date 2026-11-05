@@ -5166,7 +5166,7 @@ namespace MinecraftClient.Protocol.Handlers
             }
         }
 
-        public bool SendCustomClickAction(string id, Dictionary<string, object>? payload)
+        public bool SendCustomClickAction(string id, object? payload)
         {
             if (protocolVersion < MC_1_21_6_Version)
                 return false;

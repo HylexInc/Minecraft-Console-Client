@@ -1671,6 +1671,17 @@ In scripts and remote control, no slash is needed to perform the command, eg. `q
 
   The text in parentheses tells you what the button does: `(close)` closes the dialog, `(command)` sends a chat command, `(show dialog)` opens another dialog.
 
+  Some servers put clickable text inside the dialog body instead of buttons. `/dialog show` lists that text under `Clickable text:`, with the text shown on hover below it:
+
+  ```
+  Clickable text:
+    [1] Duels (custom: example:menu/duels)
+        Duels
+        Click to play
+  ```
+
+  Click it with `/dialog click-body <index>`. Custom actions are sent to the server and commands are run. Other actions only print what they would do.
+
 - **Dialog types:**
 
   Dialogs come in a few shapes. You might see these in the output of `/dialog show`:
@@ -1741,6 +1752,7 @@ In scripts and remote control, no slash is needed to perform the command, eg. `q
   /dialog open
   /dialog click <index>
   /dialog click-label <label>
+  /dialog click-body <index>
   /dialog set <input> <value>
   /dialog input <input> <value>
   /dialog cancel
@@ -1753,11 +1765,12 @@ In scripts and remote control, no slash is needed to perform the command, eg. `q
   /dialog show
   /dialog click 1
   /dialog click-label Teleport
+  /dialog click-body 2
   /dialog set name MyPlayer
   /dialog dismiss
   ```
 
-  See what dialog is currently shown, click the first button, click a button by its text, fill in an input, or close the dialog.
+  See what dialog is currently shown, click the first button, click a button by its text, click the second piece of clickable body text, fill in an input, or close the dialog.
 
 </details>
 

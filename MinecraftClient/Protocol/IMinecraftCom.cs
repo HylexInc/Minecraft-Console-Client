@@ -54,7 +54,7 @@ namespace MinecraftClient.Protocol
         /// <param name="id">Custom action resource location</param>
         /// <param name="payload">Optional NBT payload</param>
         /// <returns>True if successfully sent</returns>
-        bool SendCustomClickAction(string id, Dictionary<string, object>? payload);
+        bool SendCustomClickAction(string id, object? payload);
 
         /// <summary>
         /// Allow to respawn after death

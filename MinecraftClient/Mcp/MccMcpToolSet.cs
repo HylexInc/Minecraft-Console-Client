@@ -398,4 +398,30 @@ public sealed class MccMcpToolSet
     {
         return capabilities.GetWorldBlockAt(x, y, z);
     }
+
+    [McpServerTool(Name = "mcc_dialog_state"), Description("Get the current server dialog: titles, body text, clickable body text with hover and click action, buttons, and inputs.")]
+    public object DialogState()
+    {
+        return capabilities.GetDialogState();
+    }
+
+    [McpServerTool(Name = "mcc_dialog_click_body"), Description("Click a clickable piece of text inside the current dialog body.")]
+    public object DialogClickBody([Description("Clickable index from mcc_dialog_state.")] int index)
+    {
+        return capabilities.ClickDialogBody(index);
+    }
+
+    [McpServerTool(Name = "mcc_dialog_click_action"), Description("Click a button of the current dialog by index or by label.")]
+    public object DialogClickAction(
+        [Description("Button index from mcc_dialog_state. Pass either index or label.")] int? index = null,
+        [Description("Button label, case-insensitive. Pass either index or label.")] string? label = null)
+    {
+        return capabilities.ClickDialogAction(index, label);
+    }
+
+    [McpServerTool(Name = "mcc_dialog_close"), Description("Close the current dialog like pressing Escape, running its cancel action when it has one.")]
+    public object DialogClose()
+    {
+        return capabilities.CloseDialog();
+    }
 }

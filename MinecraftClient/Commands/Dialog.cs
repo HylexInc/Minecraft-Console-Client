@@ -38,6 +38,9 @@ public class Dialog : Command
             .Then(l => l.Literal("click-label")
                 .Then(l => l.Argument("Label", Arguments.GreedyString())
                     .Executes(r => ClickLabel(r.Source, Arguments.GetString(r, "Label")))))
+            .Then(l => l.Literal("click-body")
+                .Then(l => l.Argument("Index", Arguments.Integer(min: 1))
+                    .Executes(r => ClickBody(r.Source, Arguments.GetInteger(r, "Index")))))
             .Then(l => l.Literal("cancel")
                 .Executes(r => Cancel(r.Source)))
             .Then(l => l.Literal("dismiss")
@@ -90,6 +93,12 @@ public class Dialog : Command
     private static int ClickLabel(CmdResult r, string label)
     {
         var result = CmdResult.currentHandler!.Dialogs.ClickLabel(label);
+        return r.SetAndReturn(result.Success ? CmdResult.Status.Done : CmdResult.Status.Fail, result.Message);
+    }
+
+    private static int ClickBody(CmdResult r, int index)
+    {
+        var result = CmdResult.currentHandler!.Dialogs.ClickBody(index);
         return r.SetAndReturn(result.Success ? CmdResult.Status.Done : CmdResult.Status.Fail, result.Message);
     }
 

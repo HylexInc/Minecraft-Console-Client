@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MinecraftClient.CommandHandler;
+using MinecraftClient.Dialogs;
 using MinecraftClient.Inventory;
 using MinecraftClient.Mapping;
 using MinecraftClient.Protocol;
@@ -1864,6 +1865,151 @@ public sealed class MccMcpCapabilities : IMccMcpCapabilities
                 properties = block.GetStateProperties()
             });
         });
+    }
+
+    public MccMcpResult GetDialogState()
+    {
+        if (!IsCategoryEnabled(t => t.SessionStatus))
+            return MccMcpResult.Fail("capability_disabled");
+
+        McClient? client = GetClient();
+        if (client is null)
+            return NotConnected();
+
+        DialogInstance? instance = client.Dialogs.Current;
+        if (instance is null)
+            return MccMcpResult.Ok(new { active = false });
+
+        DialogDefinition definition = instance.Definition;
+        return MccMcpResult.Ok(new
+        {
+            active = true,
+            revision = instance.Revision,
+            phase = instance.Phase.ToString(),
+            type = definition.Type,
+            title = ChatBot.GetVerbatim(definition.Title),
+            externalTitle = definition.ExternalTitle is null ? null : ChatBot.GetVerbatim(definition.ExternalTitle),
+            afterAction = definition.AfterAction.ToString(),
+            canCloseWithEscape = definition.CanCloseWithEscape,
+            body = definition.Body.Select(static (body, i) => new
+            {
+                index = i + 1,
+                kind = body.Kind.ToString(),
+                type = body.Type,
+                text = ChatBot.GetVerbatim(body.Text)
+            }).ToArray(),
+            clickables = definition.BodyClicks.Select(static click => new
+            {
+                index = click.Index,
+                bodyIndex = click.BodyIndex,
+                text = click.Text,
+                hover = click.Hover,
+                kind = click.Kind.ToString(),
+                action = click.Action,
+                id = click.Id,
+                payload = click.Payload,
+                value = click.Value,
+                dialog = click.NestedDialog?.DisplayTitle()
+            }).ToArray(),
+            actions = definition.Actions.Select(static button => new
+            {
+                index = button.Index,
+                label = ChatBot.GetVerbatim(button.Label),
+                kind = button.Action?.Kind.ToString() ?? DialogActionKind.None.ToString(),
+                type = button.Action?.Type,
+                id = button.Action?.Id,
+                payload = button.Action?.Payload,
+                value = button.Action?.Value
+            }).ToArray(),
+            inputs = definition.Inputs.Select(input => new
+            {
+                key = input.Key,
+                kind = input.Kind.ToString(),
+                label = ChatBot.GetVerbatim(input.Label),
+                value = instance.Values.TryGetValue(input.Key, out string? value) ? value : input.InitialValue,
+                options = input.Options?.Select(static option => option.Id).ToArray()
+            }).ToArray()
+        });
+    }
+
+    public MccMcpResult ClickDialogBody(int index)
+    {
+        if (!IsCategoryEnabled(t => t.ChatAndCommands))
+            return MccMcpResult.Fail("capability_disabled");
+
+        McClient? client = GetClient();
+        if (client is null)
+            return NotConnected();
+
+        DialogInstance? instance = client.Dialogs.Current;
+        if (instance is null)
+            return MccMcpResult.Fail("invalid_state", Translations.dialog_none);
+
+        if (instance.Definition.BodyClicks.All(click => click.Index != index))
+            return MccMcpResult.Fail("invalid_args", string.Format(Translations.dialog_body_click_unknown, index));
+
+        return ToDialogResult(client.InvokeOnMainThread(() => client.Dialogs.ClickBody(index)));
+    }
+
+    public MccMcpResult ClickDialogAction(int? index, string? label)
+    {
+        if (!IsCategoryEnabled(t => t.ChatAndCommands))
+            return MccMcpResult.Fail("capability_disabled");
+
+        if (index is null == string.IsNullOrWhiteSpace(label))
+            return MccMcpResult.Fail("invalid_args");
+
+        McClient? client = GetClient();
+        if (client is null)
+            return NotConnected();
+
+        DialogInstance? instance = client.Dialogs.Current;
+        if (instance is null)
+            return MccMcpResult.Fail("invalid_state", Translations.dialog_none);
+
+        int buttonIndex;
+        if (index is int requested)
+        {
+            if (instance.Definition.Actions.All(button => button.Index != requested))
+                return MccMcpResult.Fail("invalid_args", string.Format(Translations.dialog_action_unknown, requested));
+            buttonIndex = requested;
+        }
+        else
+        {
+            string wanted = label!.Trim();
+            DialogButton[] matches = [.. instance.Definition.Actions.Where(button => ChatBot.GetVerbatim(button.Label).Equals(wanted, StringComparison.OrdinalIgnoreCase))];
+            if (matches.Length != 1)
+            {
+                return MccMcpResult.Fail("invalid_args", string.Format(
+                    matches.Length == 0 ? Translations.dialog_action_label_unknown : Translations.dialog_action_label_ambiguous,
+                    wanted));
+            }
+            buttonIndex = matches[0].Index;
+        }
+
+        return ToDialogResult(client.InvokeOnMainThread(() => client.Dialogs.Click(buttonIndex)));
+    }
+
+    public MccMcpResult CloseDialog()
+    {
+        if (!IsCategoryEnabled(t => t.ChatAndCommands))
+            return MccMcpResult.Fail("capability_disabled");
+
+        McClient? client = GetClient();
+        if (client is null)
+            return NotConnected();
+
+        if (client.Dialogs.Current is null)
+            return MccMcpResult.Fail("invalid_state", Translations.dialog_none);
+
+        return ToDialogResult(client.InvokeOnMainThread(client.Dialogs.Cancel));
+    }
+
+    private static MccMcpResult ToDialogResult(DialogActionResult result)
+    {
+        return result.Success
+            ? MccMcpResult.Ok(new { success = true, message = result.Message })
+            : MccMcpResult.Fail("action_failed", result.Message, new { success = false });
     }
 
     private static MccMcpResult OpenContainerCore(McClient client, Location location, Block block, int activeContainerId, int waitMs, bool closeCurrent)

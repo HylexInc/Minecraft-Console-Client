@@ -266,7 +266,7 @@ namespace MinecraftClient.Protocol.Handlers
             throw new NotImplementedException();
         }
 
-        public bool SendCustomClickAction(string id, Dictionary<string, object>? payload)
+        public bool SendCustomClickAction(string id, object? payload)
         {
             return false;
         }

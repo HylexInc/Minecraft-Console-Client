@@ -1848,7 +1848,7 @@ namespace MinecraftClient
             }
         }
 
-        public bool SendCustomClickAction(string id, Dictionary<string, object>? payload)
+        public bool SendCustomClickAction(string id, object? payload)
         {
             if (InvokeRequired)
                 return InvokeOnMainThread(() => SendCustomClickAction(id, payload));

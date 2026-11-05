@@ -8096,6 +8096,10 @@ namespace MinecraftClient {
             get { return ResourceManager.GetString("dialog.action_unsupported", resourceCulture); }
         }
 
+        internal static string dialog_body_click_unknown {
+            get { return ResourceManager.GetString("dialog.body_click_unknown", resourceCulture); }
+        }
+
         internal static string dialog_tui_pending {
             get { return ResourceManager.GetString("dialog.tui_pending", resourceCulture); }
         }
@@ -8190,6 +8194,22 @@ namespace MinecraftClient {
 
         internal static string dialog_render_action {
             get { return ResourceManager.GetString("dialog.render.action", resourceCulture); }
+        }
+
+        internal static string dialog_render_body_clicks {
+            get { return ResourceManager.GetString("dialog.render.body_clicks", resourceCulture); }
+        }
+
+        internal static string dialog_render_body_click {
+            get { return ResourceManager.GetString("dialog.render.body_click", resourceCulture); }
+        }
+
+        internal static string dialog_render_body_click_detail {
+            get { return ResourceManager.GetString("dialog.render.body_click_detail", resourceCulture); }
+        }
+
+        internal static string dialog_render_body_click_hover {
+            get { return ResourceManager.GetString("dialog.render.body_click_hover", resourceCulture); }
         }
 
         internal static string dialog_render_cancel_hint {

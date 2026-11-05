@@ -2885,7 +2885,7 @@ see item details.</value>
     <value>cancelled</value>
   </data>
   <data name="cmd.dialog.usage" xml:space="preserve">
-    <value>dialog [show|open|set|click|click-label|cancel|dismiss]</value>
+    <value>dialog [show|open|set|click|click-label|click-body|cancel|dismiss]</value>
   </data>
   <data name="cmd.dialog.desc" xml:space="preserve">
     <value>View and interact with the current server custom dialog.</value>
@@ -2977,6 +2977,9 @@ see item details.</value>
   <data name="dialog.action_unsupported" xml:space="preserve">
     <value>Unsupported dialog action: {0}</value>
   </data>
+  <data name="dialog.body_click_unknown" xml:space="preserve">
+    <value>Unknown clickable dialog text index: {0}</value>
+  </data>
   <data name="dialog.tui_pending" xml:space="preserve">
     <value>Custom dialog is pending. Use dialog open after closing the current overlay.</value>
   </data>
@@ -3048,6 +3051,18 @@ see item details.</value>
   </data>
   <data name="dialog.render.action" xml:space="preserve">
     <value>  [{0}] {1} ({2})</value>
+  </data>
+  <data name="dialog.render.body_clicks" xml:space="preserve">
+    <value>Clickable text:</value>
+  </data>
+  <data name="dialog.render.body_click" xml:space="preserve">
+    <value>  [{0}] {1} ({2})</value>
+  </data>
+  <data name="dialog.render.body_click_detail" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="dialog.render.body_click_hover" xml:space="preserve">
+    <value>      {0}</value>
   </data>
   <data name="dialog.render.cancel_hint" xml:space="preserve">
     <value>Use /dialog cancel to close or run the cancel action.</value>
