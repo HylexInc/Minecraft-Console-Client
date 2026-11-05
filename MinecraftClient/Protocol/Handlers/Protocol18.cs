@@ -108,6 +108,7 @@ namespace MinecraftClient.Protocol.Handlers
 
         private bool receiveDeclareCommands = false, receivePlayerInfo = false;
         private readonly Lock MessageSigningLock = new();
+        private readonly Lock PlayStateLock = new();
         private Guid chatUuid = Guid.NewGuid();
         private int pendingAcknowledgments = 0, messageIndex = 0;
         private LastSeenMessagesCollector lastSeenMessagesCollector;
@@ -545,8 +546,11 @@ namespace MinecraftClient.Protocol.Handlers
                                 return false;
 
                             case ConfigurationPacketTypesIn.FinishConfiguration:
-                                SetCurrentState(CurrentState.Play);
-                                SendPacket(ConfigurationPacketTypesOut.FinishConfiguration, new List<byte>());
+                                lock (PlayStateLock)
+                                {
+                                    SendPacket(ConfigurationPacketTypesOut.FinishConfiguration, new List<byte>());
+                                    SetCurrentState(CurrentState.Play);
+                                }
                                 break;
 
                             case ConfigurationPacketTypesIn.KeepAlive:
@@ -1309,8 +1313,11 @@ namespace MinecraftClient.Protocol.Handlers
                     chunkBatchStartTime = GetNanos();
                     break;
                 case PacketTypesIn.StartConfiguration:
-                    SetCurrentState(CurrentState.Configuration);
-                    SendAcknowledgeConfiguration();
+                    lock (PlayStateLock)
+                    {
+                        SendAcknowledgeConfiguration();
+                        SetCurrentState(CurrentState.Configuration);
+                    }
                     break;
                 case PacketTypesIn.HideMessage:
                     var hideMessageSignature = dataTypes.ReadNextByteArray(packetData);
@@ -4132,7 +4139,13 @@ namespace MinecraftClient.Protocol.Handlers
         /// <param name="packetData">packet Data</param>
         private void SendPacket(PacketTypesOut packet, IEnumerable<byte> packetData)
         {
-            SendPacket(packetPalette.GetOutgoingIdByType(packet), packetData, packet.ToString());
+            lock (PlayStateLock)
+            {
+                if (currentState != CurrentState.Play)
+                    return;
+
+                SendPacket(packetPalette.GetOutgoingIdByType(packet), packetData, packet.ToString());
+            }
         }
 
         private void ProcessChunkBlockEntityData(int chunkX, int chunkZ, Queue<byte> packetData)
@@ -5206,6 +5219,9 @@ namespace MinecraftClient.Protocol.Handlers
         {
             if (string.IsNullOrEmpty(message))
                 return true;
+
+            if (currentState != CurrentState.Play)
+                return false;
 
             // Process Chat Command - 1.19 and above
             if (protocolVersion >= MC_1_19_Version && message.StartsWith('/'))

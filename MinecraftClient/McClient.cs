@@ -633,8 +633,10 @@ namespace MinecraftClient
 
             while (chatQueue.Count > 0 && nextMessageSendTime < DateTime.Now)
             {
-                string text = chatQueue.Dequeue();
-                handler.SendChatMessage(text, playerKeyPair);
+                if (!handler.SendChatMessage(chatQueue.Peek(), playerKeyPair))
+                    break;
+
+                chatQueue.Dequeue();
                 nextMessageSendTime = DateTime.Now + TimeSpan.FromSeconds(Config.Main.Advanced.MessageCooldown);
             }
         }
