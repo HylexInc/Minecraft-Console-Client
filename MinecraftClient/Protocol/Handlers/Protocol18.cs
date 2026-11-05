@@ -1669,8 +1669,11 @@ namespace MinecraftClient.Protocol.Handlers
                             }
 
                             var dataSize = dataTypes.ReadNextVarInt(packetData); // Size
+                            var chunkColumnData = new Queue<byte>(dataTypes.ReadData(dataSize, packetData));
 
-                            pTerrain.ProcessChunkColumnData(chunkX, chunkZ, verticalStripBitmask, packetData);
+                            pTerrain.ProcessChunkColumnData(chunkX, chunkZ, verticalStripBitmask, chunkColumnData);
+                            if (chunkColumnData.Count > 0)
+                                log.Debug($"Chunk {chunkX},{chunkZ}: {chunkColumnData.Count} bytes of section data were not read");
                             ProcessChunkBlockEntityData(chunkX, chunkZ, packetData);
                             Interlocked.Decrement(ref handler.GetWorld().chunkLoadNotCompleted);
 
@@ -4154,30 +4157,37 @@ namespace MinecraftClient.Protocol.Handlers
                 return;
 
             int blockEntityCount = dataTypes.ReadNextVarInt(packetData);
-            for (int i = 0; i < blockEntityCount; i++)
+            try
             {
-                if (protocolVersion < MC_1_18_1_Version)
+                for (int i = 0; i < blockEntityCount; i++)
                 {
-                    Dictionary<string, object>? blockEntityNbt = dataTypes.ReadNextNbt(packetData);
-                    if (blockEntityNbt.TryGetValue("x", out var nbtX)
-                        && blockEntityNbt.TryGetValue("y", out var nbtY)
-                        && blockEntityNbt.TryGetValue("z", out var nbtZ))
+                    if (protocolVersion < MC_1_18_1_Version)
                     {
-                        handler.OnBlockEntityData(
-                            new Location(Convert.ToInt32(nbtX), Convert.ToInt32(nbtY), Convert.ToInt32(nbtZ)),
-                            blockEntityNbt);
+                        Dictionary<string, object>? blockEntityNbt = dataTypes.ReadNextNbt(packetData);
+                        if (blockEntityNbt.TryGetValue("x", out var nbtX)
+                            && blockEntityNbt.TryGetValue("y", out var nbtY)
+                            && blockEntityNbt.TryGetValue("z", out var nbtZ))
+                        {
+                            handler.OnBlockEntityData(
+                                new Location(Convert.ToInt32(nbtX), Convert.ToInt32(nbtY), Convert.ToInt32(nbtZ)),
+                                blockEntityNbt);
+                        }
+
+                        continue;
                     }
 
-                    continue;
+                    int packedXZ = dataTypes.ReadNextByte(packetData);
+                    int y = dataTypes.ReadNextShort(packetData);
+                    dataTypes.ReadNextVarInt(packetData); // Block entity type registry id
+                    Dictionary<string, object>? nbt = dataTypes.ReadNextNbt(packetData);
+                    int blockX = chunkX * Chunk.SizeX + ((packedXZ >> 4) & 0x0F);
+                    int blockZ = chunkZ * Chunk.SizeZ + (packedXZ & 0x0F);
+                    handler.OnBlockEntityData(new Location(blockX, y, blockZ), nbt);
                 }
-
-                int packedXZ = dataTypes.ReadNextByte(packetData);
-                int y = dataTypes.ReadNextShort(packetData);
-                dataTypes.ReadNextVarInt(packetData); // Block entity type registry id
-                Dictionary<string, object>? nbt = dataTypes.ReadNextNbt(packetData);
-                int blockX = chunkX * Chunk.SizeX + ((packedXZ >> 4) & 0x0F);
-                int blockZ = chunkZ * Chunk.SizeZ + (packedXZ & 0x0F);
-                handler.OnBlockEntityData(new Location(blockX, y, blockZ), nbt);
+            }
+            catch (Exception e) when (e is System.IO.InvalidDataException or InvalidOperationException)
+            {
+                log.Debug($"Chunk {chunkX},{chunkZ}: block entities skipped ({e.Message})");
             }
         }
 

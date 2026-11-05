@@ -147,6 +147,9 @@ namespace MinecraftClient.Protocol.Handlers
 
                 for (int chunkY = 0; chunkY < chunkColumnSize; chunkY++)
                 {
+                    if (cache.Count == 0)
+                        break;
+
                     int lastChunkY;
                     if (protocolversion == Protocol18Handler.MC_1_17_Version || protocolversion == Protocol18Handler.MC_1_17_1_Version)
                     {
